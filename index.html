@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나크작 X 박완서의 낱말들</title>
+<meta name="description" content="박완서의 문장에서 건져 올린 오늘의 낱말, 그리고 우리가 덧붙이는 글">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{
+    --page:#FFFBF6;
+    --apricot:#FADBC6;
+    --apricot-deep:#F2C3A4;
+    --ink:#141210;
+    --ink-soft:#5b524b;
+    --line:#EADFD5;
+    --card:#ffffff;
+    --accent:#B5562A;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--page);
+    color:var(--ink);
+    font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.6;
+  }
+  button,input,textarea{font-family:inherit;font-size:inherit;color:inherit}
+
+  /* 상단 바 */
+  header.top{
+    position:sticky;top:0;z-index:20;
+    background:rgba(255,251,246,.92);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .top-inner{
+    max-width:600px;margin:0 auto;padding:14px 16px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+  }
+  .brand{
+    font-family:"Nanum Myeongjo",serif;font-weight:800;
+    font-size:18px;letter-spacing:-.02em;white-space:nowrap;
+    cursor:pointer;
+  }
+  .brand .x{font-weight:400;color:var(--accent);margin:0 .25em}
+  .admin-btn{
+    border:1px solid var(--line);background:transparent;border-radius:999px;
+    padding:6px 12px;font-size:13px;color:var(--ink-soft);cursor:pointer;white-space:nowrap;
+  }
+  .admin-btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  main{max-width:600px;margin:0 auto;padding:20px 16px 80px}
+
+  /* 관리자 패널 */
+  .admin-panel{
+    display:none;background:#fff;border:1.5px solid var(--ink);border-radius:16px;
+    padding:20px;margin-bottom:28px;
+  }
+  .admin-panel.show{display:block}
+  .admin-panel h2{
+    font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:18px;margin:0 0 4px;
+  }
+  .admin-panel .hint{font-size:13px;color:var(--ink-soft);margin:0 0 16px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+  .field label span{font-weight:400;color:var(--ink-soft)}
+  .field input,.field textarea{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    background:var(--page);outline:none;
+  }
+  .field input:focus,.field textarea:focus{border-color:var(--ink)}
+  .field textarea{resize:vertical;min-height:70px;line-height:1.6}
+  .word-input{font-family:"Nanum Myeongjo",serif !important;font-weight:800;font-size:22px !important}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{
+    border:none;border-radius:10px;padding:10px 18px;font-weight:600;cursor:pointer;
+    background:var(--ink);color:#fff;
+  }
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .btn:disabled{opacity:.5;cursor:default}
+
+  /* 피드 카드 */
+  .post{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    overflow:hidden;margin-bottom:36px;
+    box-shadow:0 1px 0 rgba(0,0,0,.02);
+  }
+  .post-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;
+  }
+  .post-date{font-size:14px;font-weight:600;letter-spacing:-.01em}
+  .post-date small{font-weight:400;color:var(--ink-soft);margin-left:4px}
+  .post-tools{display:none;gap:6px}
+  body.is-admin .post-tools{display:flex}
+  .tool{border:none;background:none;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:4px 6px}
+  .tool:hover{color:var(--ink)}
+
+  .word-stage{
+    background:var(--apricot);
+    aspect-ratio:1/1;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:32px 24px;text-align:center;position:relative;
+  }
+  .word-stage .big{
+    font-family:"Nanum Myeongjo",serif;font-weight:800;color:var(--ink);
+    font-size:clamp(54px,15vw,96px);line-height:1.15;letter-spacing:-.03em;
+    word-break:keep-all;
+  }
+  .word-stage .big.long{font-size:clamp(40px,10vw,68px)}
+  .word-stage .tag{
+    position:absolute;bottom:18px;left:0;right:0;
+    font-family:"Nanum Myeongjo",serif;font-size:12px;letter-spacing:.2em;color:rgba(20,18,16,.55);
+  }
+
+  .post-body{padding:18px 18px 4px}
+  .meaning{
+    font-size:14.5px;color:var(--ink);margin:0 0 14px;
+    padding-left:12px;border-left:2px solid var(--apricot-deep);
+  }
+  .meaning b{font-family:"Nanum Myeongjo",serif;font-weight:800;margin-right:6px}
+  .quote{
+    font-family:"Gowun Batang",serif;font-size:16px;line-height:1.85;
+    margin:0 0 6px;white-space:pre-wrap;word-break:keep-all;
+  }
+  .quote mark{background:linear-gradient(transparent 58%,var(--apricot) 58%);color:inherit;padding:0 1px}
+  .source{font-size:13px;color:var(--ink-soft);margin:0 0 14px}
+
+  /* 댓글 */
+  .comments{border-top:1px solid var(--line);margin-top:10px;padding:14px 18px 6px}
+  .c-count{font-size:13px;color:var(--ink-soft);margin-bottom:8px}
+  .c-item{padding:12px 0;border-bottom:1px dashed var(--line)}
+  .c-item:last-child{border-bottom:none}
+  .c-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .c-name{font-weight:700;font-size:14px}
+  .c-time{font-size:12px;color:var(--ink-soft);margin-left:6px;font-weight:400}
+  .c-actions{display:flex;gap:2px;flex-shrink:0}
+  .c-text{
+    font-family:"Gowun Batang",serif;font-size:15.5px;line-height:1.8;
+    white-space:pre-wrap;word-break:break-word;margin-top:4px;
+  }
+  .c-edit textarea{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:6px;
+    background:var(--page);min-height:80px;resize:vertical;outline:none;line-height:1.7;
+  }
+  .c-edit .row{margin-top:6px;justify-content:flex-end}
+  .c-edit .btn{padding:7px 14px;font-size:14px}
+  .more-c{border:none;background:none;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:6px 0}
+
+  .c-form{border-top:1px solid var(--line);padding:14px 18px 18px;background:#FFFDFB}
+  .c-form .who{display:flex;gap:8px;margin-bottom:8px}
+  .c-form input{
+    flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px 11px;
+    background:#fff;outline:none;font-size:14px;
+  }
+  .c-form textarea{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    background:#fff;outline:none;min-height:84px;resize:vertical;line-height:1.7;
+    font-family:"Gowun Batang",serif;font-size:15px;
+  }
+  .c-form input:focus,.c-form textarea:focus{border-color:var(--ink)}
+  .c-form .row{justify-content:space-between;margin-top:8px}
+  .c-form .note{font-size:12px;color:var(--ink-soft)}
+
+  .empty{
+    text-align:center;padding:80px 20px;color:var(--ink-soft);
+    font-family:"Nanum Myeongjo",serif;font-size:17px;line-height:1.9;
+  }
+  .loading{text-align:center;padding:60px 0;color:var(--ink-soft);font-size:14px}
+  .err{color:#b3261e;font-size:13px;margin-top:6px}
+
+  /* 모달 */
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(20,18,16,.45);z-index:50;
+    display:none;align-items:center;justify-content:center;padding:16px;
+  }
+  .modal-bg.show{display:flex}
+  .modal{
+    background:#fff;border-radius:16px;padding:22px;width:100%;max-width:340px;
+  }
+  .modal h3{margin:0 0 6px;font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:18px}
+  .modal p{margin:0 0 14px;font-size:14px;color:var(--ink-soft)}
+  .modal input{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+    font-size:16px;outline:none;letter-spacing:.1em;
+  }
+  .modal input:focus{border-color:var(--ink)}
+  .modal .row{justify-content:flex-end;margin-top:14px}
+
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;
+    opacity:0;transition:.25s;z-index:60;pointer-events:none;white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  footer{text-align:center;font-size:12px;color:var(--ink-soft);padding:0 16px 40px;font-family:"Nanum Myeongjo",serif}
+
+  @media (max-width:420px){
+    .brand{font-size:16px}
+    .c-form .who{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand" id="brand">나크작<span class="x">X</span>박완서의 낱말들</div>
+    <button class="admin-btn" id="adminBtn">관리자</button>
+  </div>
+</header>
+
+<main>
+  <!-- 관리자: 오늘의 낱말 올리기 -->
+  <section class="admin-panel" id="adminPanel">
+    <h2 id="formTitle">오늘의 낱말 올리기</h2>
+    <p class="hint">낱말만 넣어도 올라가요. 원문 문장과 뜻풀이는 있으면 채워 주세요.</p>
+    <div class="field">
+      <label for="fDate">날짜</label>
+      <input type="date" id="fDate">
+    </div>
+    <div class="field">
+      <label for="fWord">낱말</label>
+      <input type="text" id="fWord" class="word-input" placeholder="예) 시나브로" maxlength="30">
+    </div>
+    <div class="field">
+      <label for="fMeaning">뜻풀이 <span>(사전 뜻, 선택)</span></label>
+      <textarea id="fMeaning" placeholder="국어사전의 뜻을 적어 주세요"></textarea>
+    </div>
+    <div class="field">
+      <label for="fQuote">원문 문장 <span>(선택 · 낱말은 자동으로 표시돼요)</span></label>
+      <textarea id="fQuote" placeholder="박완서 작품 속 문장"></textarea>
+    </div>
+    <div class="field">
+      <label for="fSource">출처 <span>(선택)</span></label>
+      <input type="text" id="fSource" placeholder="예) 『그 많던 싱아는 누가 다 먹었을까』">
+    </div>
+    <div class="row">
+      <button class="btn" id="saveWord">올리기</button>
+      <button class="btn ghost" id="cancelEdit" style="display:none">수정 취소</button>
+    </div>
+    <div class="err" id="adminErr"></div>
+  </section>
+
+  <div id="feed"><div class="loading">불러오는 중…</div></div>
+</main>
+
+<footer>나크작 X 박완서의 낱말들</footer>
+
+<!-- 비밀번호 모달 -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="mTitle">비밀번호</h3>
+    <p id="mDesc"></p>
+    <input type="password" id="mInput" inputmode="numeric" autocomplete="off">
+    <div class="err" id="mErr"></div>
+    <div class="row">
+      <button class="btn ghost" id="mCancel">취소</button>
+      <button class="btn" id="mOk">확인</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== 설정 ===================== */
+// 공유 저장소: Firebase Realtime Database (젓가락 앱과 같은 didimdol 프로젝트, 다른 칸 사용)
+const DB_URL = 'https://didimdol-1d4f3-default-rtdb.firebaseio.com';
+const ROOT = 'nakjak_words';       // 이 사이트 전용 칸
+const ADMIN_PW = '0909';           // 관리자 비밀번호
+const COMMENTS_PREVIEW = 5;        // 낱말마다 처음에 보여줄 글 수
+
+/* ===================== 도우미 ===================== */
+const $ = id => document.getElementById(id);
+const api = path => `${DB_URL}/${ROOT}/${path}.json`;
+async function dbGet(path){ const r = await fetch(api(path)); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function dbPost(path,data){ const r = await fetch(api(path),{method:'POST',body:JSON.stringify(data)}); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function dbPatch(path,data){ const r = await fetch(api(path),{method:'PATCH',body:JSON.stringify(data)}); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function dbDel(path){ const r = await fetch(api(path),{method:'DELETE'}); if(!r.ok) throw new Error(r.status); }
+
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function hash(s){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('nakjak:'+s));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function todayStr(){
+  const d = new Date(); const z = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+}
+function fmtDate(ds){
+  const [y,m,d] = ds.split('-').map(Number);
+  const w = ['일','월','화','수','목','금','토'][new Date(y,m-1,d).getDay()];
+  return {main:`${y}년 ${m}월 ${d}일`, day:`${w}요일`};
+}
+function fmtTime(ts){
+  const diff = (Date.now()-ts)/1000;
+  if(diff<60) return '방금';
+  if(diff<3600) return Math.floor(diff/60)+'분 전';
+  if(diff<86400) return Math.floor(diff/3600)+'시간 전';
+  const d = new Date(ts);
+  return `${d.getMonth()+1}월 ${d.getDate()}일`;
+}
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800); }
+
+function askPassword(title, desc){
+  return new Promise(resolve=>{
+    $('mTitle').textContent = title; $('mDesc').textContent = desc||'';
+    $('mInput').value=''; $('mErr').textContent='';
+    $('modalBg').classList.add('show'); setTimeout(()=>$('mInput').focus(),50);
+    const done = v=>{ $('modalBg').classList.remove('show'); $('mOk').onclick=$('mCancel').onclick=$('mInput').onkeydown=null; resolve(v); };
+    $('mOk').onclick = ()=>done($('mInput').value);
+    $('mCancel').onclick = ()=>done(null);
+    $('mInput').onkeydown = e=>{ if(e.key==='Enter') done($('mInput').value); if(e.key==='Escape') done(null); };
+  });
+}
+
+/* ===================== 상태 ===================== */
+let words = {};      // {id:{date,word,meaning,quote,source,createdAt}}
+let comments = {};   // {wordId:{cid:{name,text,pw,createdAt,editedAt}}}
+let expanded = {};   // 글 더보기 펼친 낱말
+let editingWordId = null;
+let isAdmin = false;
+try{ isAdmin = sessionStorage.getItem('nakjak_admin')==='1'; }catch(e){}
+
+/* ===================== 불러오기 ===================== */
+async function load(silent){
+  try{
+    const [w,c] = await Promise.all([dbGet('words'), dbGet('comments')]);
+    words = w||{}; comments = c||{};
+    render();
+  }catch(e){
+    if(!silent) $('feed').innerHTML = '<div class="empty">불러오지 못했어요.<br>잠시 뒤 새로고침해 주세요.</div>';
+  }
+}
+
+/* ===================== 그리기 ===================== */
+function render(){
+  // 쓰는 중인 글은 지켜두기
+  const drafts = {};
+  document.querySelectorAll('.c-form textarea').forEach(t=>{ if(t.value) drafts[t.dataset.w]=t.value; });
+  const editing = document.querySelector('.c-edit');
+  if(editing) return; // 수정 중엔 새로 그리지 않음
+
+  const list = Object.entries(words).sort((a,b)=>
+    b[1].date.localeCompare(a[1].date) || (b[1].createdAt||0)-(a[1].createdAt||0));
+
+  if(!list.length){
+    $('feed').innerHTML = '<div class="empty">아직 올라온 낱말이 없어요.<br>곧 첫 낱말이 도착합니다.</div>';
+    return;
+  }
+  $('feed').innerHTML = list.map(([id,w])=>postHTML(id,w)).join('');
+  Object.entries(drafts).forEach(([wid,v])=>{ const t=document.querySelector(`.c-form textarea[data-w="${wid}"]`); if(t) t.value=v; });
+
+  let savedName=''; try{ savedName = localStorage.getItem('nakjak_name')||''; }catch(e){}
+  document.querySelectorAll('.c-form input[name=name]').forEach(i=>{ if(!i.value) i.value=savedName; });
+}
+
+function highlight(quote, word){
+  const q = esc(quote);
+  if(!word) return q;
+  const w = esc(word);
+  return q.split(w).join(`<mark>${w}</mark>`);
+}
+
+function postHTML(id,w){
+  const d = fmtDate(w.date);
+  const cs = Object.entries(comments[id]||{}).sort((a,b)=>a[1].createdAt-b[1].createdAt);
+  const showAll = expanded[id] || cs.length<=COMMENTS_PREVIEW;
+  const visible = showAll ? cs : cs.slice(-COMMENTS_PREVIEW);
+  const hidden = cs.length - visible.length;
+
+  return `
+  <article class="post" id="p-${id}">
+    <div class="post-head">
+      <div class="post-date">${d.main}<small>${d.day}</small></div>
+      <div class="post-tools">
+        <button class="tool" onclick="editWord('${id}')">수정</button>
+        <button class="tool" onclick="deleteWord('${id}')">삭제</button>
+      </div>
+    </div>
+    <div class="word-stage">
+      <div class="big ${[...w.word].length>5?'long':''}">${esc(w.word)}</div>
+      <div class="tag">오늘의 낱말</div>
+    </div>
+    ${(w.meaning||w.quote)?`<div class="post-body">
+      ${w.meaning?`<p class="meaning"><b>${esc(w.word)}</b>${esc(w.meaning)}</p>`:''}
+      ${w.quote?`<p class="quote">${highlight(w.quote,w.word)}</p>`:''}
+      ${w.source?`<p class="source">— 박완서, ${esc(w.source)}</p>`:''}
+    </div>`:''}
+    <div class="comments">
+      <div class="c-count">${cs.length?`글 ${cs.length}편`:'아직 아무도 글을 달지 않았어요. 첫 글을 남겨 주세요.'}</div>
+      ${hidden?`<button class="more-c" onclick="expanded['${id}']=true;render()">이전 글 ${hidden}편 더 보기</button>`:''}
+      ${visible.map(([cid,c])=>commentHTML(id,cid,c)).join('')}
+    </div>
+    <form class="c-form" onsubmit="addComment(event,'${id}')">
+      <div class="who">
+        <input name="name" placeholder="이름" maxlength="20" required>
+        <input name="pw" type="password" placeholder="비밀번호 (수정·삭제용)" maxlength="20" required autocomplete="new-password">
+      </div>
+      <textarea name="text" data-w="${id}" placeholder="‘${esc(w.word)}’(으)로 떠오르는 글을 남겨 주세요" maxlength="3000" required></textarea>
+      <div class="row">
+        <span class="note">비밀번호는 내 글을 고칠 때 써요</span>
+        <button class="btn" type="submit">글 남기기</button>
+      </div>
+    </form>
+  </article>`;
+}
+
+function commentHTML(wid,cid,c){
+  return `
+  <div class="c-item" id="c-${cid}">
+    <div class="c-top">
+      <div class="c-name">${esc(c.name)}<span class="c-time">${fmtTime(c.createdAt)}${c.editedAt?' · 수정됨':''}</span></div>
+      <div class="c-actions">
+        <button class="tool" onclick="editComment('${wid}','${cid}')">수정</button>
+        <button class="tool" onclick="deleteComment('${wid}','${cid}')">삭제</button>
+      </div>
+    </div>
+    <div class="c-text">${esc(c.text)}</div>
+  </div>`;
+}
+
+/* ===================== 글(댓글) ===================== */
+async function addComment(e,wid){
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('button[type=submit]');
+  const el = f.elements; const name = el.name.value.trim(), pw = el.pw.value, text = el.text.value.trim();
+  if(!name||!pw||!text) return;
+  btn.disabled = true;
+  try{
+    const data = {name, text, pw: await hash(pw), createdAt: Date.now()};
+    const res = await dbPost(`comments/${wid}`, data);
+    comments[wid] = comments[wid]||{};
+    comments[wid][res.name] = data;
+    try{ localStorage.setItem('nakjak_name', name); }catch(_){}
+    el.text.value=''; el.pw.value='';
+    expanded[wid]=true;
+    render();
+    toast('글을 남겼어요');
+  }catch(err){ toast('저장에 실패했어요. 다시 시도해 주세요'); }
+  btn.disabled = false;
+}
+
+async function checkCommentPw(wid,cid,action){
+  if(isAdmin) return true;
+  const pw = await askPassword(`글 ${action}`, '글을 남길 때 정한 비밀번호를 넣어 주세요.');
+  if(pw===null) return false;
+  if(await hash(pw) !== comments[wid][cid].pw){ toast('비밀번호가 맞지 않아요'); return false; }
+  return true;
+}
+
+async function editComment(wid,cid){
+  if(!await checkCommentPw(wid,cid,'수정')) return;
+  const box = $('c-'+cid); const c = comments[wid][cid];
+  box.querySelector('.c-text').outerHTML = `
+    <div class="c-edit">
+      <textarea>${esc(c.text)}</textarea>
+      <div class="row">
+        <button class="btn ghost" onclick="cancelCommentEdit()">취소</button>
+        <button class="btn" onclick="saveComment('${wid}','${cid}',this)">저장</button>
+      </div>
+    </div>`;
+  box.querySelector('.c-actions').style.display='none';
+  box.querySelector('textarea').focus();
+}
+function cancelCommentEdit(){ document.querySelector('.c-edit')?.remove(); render(); }
+
+async function saveComment(wid,cid,btn){
+  const text = btn.closest('.c-edit').querySelector('textarea').value.trim();
+  if(!text) return;
+  btn.disabled = true;
+  try{
+    const patch = {text, editedAt: Date.now()};
+    await dbPatch(`comments/${wid}/${cid}`, patch);
+    Object.assign(comments[wid][cid], patch);
+    document.querySelector('.c-edit')?.remove();
+    render(); toast('고쳤어요');
+  }catch(e){ btn.disabled=false; toast('저장에 실패했어요'); }
+}
+
+async function deleteComment(wid,cid){
+  if(!await checkCommentPw(wid,cid,'삭제')) return;
+  if(!confirm('이 글을 지울까요? 되돌릴 수 없어요.')) return;
+  try{
+    await dbDel(`comments/${wid}/${cid}`);
+    delete comments[wid][cid];
+    render(); toast('지웠어요');
+  }catch(e){ toast('삭제에 실패했어요'); }
+}
+
+/* ===================== 관리자 ===================== */
+function setAdmin(on){
+  isAdmin = on;
+  document.body.classList.toggle('is-admin', on);
+  $('adminPanel').classList.toggle('show', on);
+  $('adminBtn').classList.toggle('on', on);
+  $('adminBtn').textContent = on ? '관리자 나가기' : '관리자';
+  try{ on ? sessionStorage.setItem('nakjak_admin','1') : sessionStorage.removeItem('nakjak_admin'); }catch(e){}
+  if(!on) resetForm();
+}
+
+$('adminBtn').onclick = async ()=>{
+  if(isAdmin){ setAdmin(false); return; }
+  const pw = await askPassword('관리자', '관리자 비밀번호를 넣어 주세요.');
+  if(pw===null) return;
+  if(pw===ADMIN_PW){ setAdmin(true); window.scrollTo({top:0,behavior:'smooth'}); setTimeout(()=>$('fWord').focus(),300); }
+  else toast('비밀번호가 맞지 않아요');
+};
+
+function resetForm(){
+  editingWordId = null;
+  $('fDate').value = todayStr();
+  ['fWord','fMeaning','fQuote','fSource'].forEach(i=>$(i).value='');
+  $('formTitle').textContent = '오늘의 낱말 올리기';
+  $('saveWord').textContent = '올리기';
+  $('cancelEdit').style.display = 'none';
+  $('adminErr').textContent = '';
+}
+$('cancelEdit').onclick = resetForm;
+
+$('saveWord').onclick = async ()=>{
+  const data = {
+    date: $('fDate').value || todayStr(),
+    word: $('fWord').value.trim(),
+    meaning: $('fMeaning').value.trim(),
+    quote: $('fQuote').value.trim(),
+    source: $('fSource').value.trim(),
+  };
+  if(!data.word){ $('adminErr').textContent='낱말을 넣어 주세요.'; return; }
+  $('saveWord').disabled = true; $('adminErr').textContent='';
+  try{
+    if(editingWordId){
+      await dbPatch(`words/${editingWordId}`, data);
+      Object.assign(words[editingWordId], data);
+      toast('고쳤어요');
+    }else{
+      data.createdAt = Date.now();
+      const res = await dbPost('words', data);
+      words[res.name] = data;
+      toast('오늘의 낱말을 올렸어요');
+    }
+    resetForm(); render();
+  }catch(e){ $('adminErr').textContent='저장에 실패했어요. 인터넷 연결을 확인해 주세요.'; }
+  $('saveWord').disabled = false;
+};
+
+function editWord(id){
+  const w = words[id]; editingWordId = id;
+  $('fDate').value=w.date; $('fWord').value=w.word; $('fMeaning').value=w.meaning||'';
+  $('fQuote').value=w.quote||''; $('fSource').value=w.source||'';
+  $('formTitle').textContent = '낱말 고치기';
+  $('saveWord').textContent = '고친 내용 저장';
+  $('cancelEdit').style.display = '';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function deleteWord(id){
+  const n = Object.keys(comments[id]||{}).length;
+  if(!confirm(`‘${words[id].word}’ 낱말을 지울까요?${n?`\n달린 글 ${n}편도 함께 지워져요.`:''}`)) return;
+  try{
+    await Promise.all([dbDel(`words/${id}`), dbDel(`comments/${id}`)]);
+    delete words[id]; delete comments[id];
+    render(); toast('지웠어요');
+  }catch(e){ toast('삭제에 실패했어요'); }
+}
+
+/* ===================== 시작 ===================== */
+$('brand').onclick = ()=>window.scrollTo({top:0,behavior:'smooth'});
+resetForm();
+setAdmin(isAdmin);
+load();
+setInterval(()=>{ if(!document.hidden) load(true); }, 30000);  // 30초마다 새 글 확인
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(true); });
+</script>
+</body>
+</html>
