@@ -201,6 +201,58 @@
 
   footer{text-align:center;font-size:12px;color:var(--ink-soft);padding:0 16px 40px;font-family:"Nanum Myeongjo",serif}
 
+  /* 탭 */
+  .tabs{max-width:600px;margin:0 auto;padding:0 16px;display:flex;gap:22px}
+  .tabs a{
+    text-decoration:none;color:var(--ink-soft);font-size:14px;font-weight:600;
+    padding:2px 0 10px;border-bottom:2px solid transparent;
+  }
+  .tabs a.on{color:var(--ink);border-bottom-color:var(--ink)}
+
+  /* 갤러리 */
+  #gallery{display:none}
+  body.v-gallery #gallery{display:block}
+  body.v-gallery #feed, body.v-gallery #adminPanel{display:none !important}
+  .g-head{margin:6px 0 20px}
+  .g-head h1{font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:24px;margin:0 0 4px;letter-spacing:-.02em}
+  .g-head p{margin:0;font-size:14px;color:var(--ink-soft)}
+  .g-search{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+    background:#fff;outline:none;margin-bottom:16px;font-size:15px;
+  }
+  .g-search:focus{border-color:var(--ink)}
+  .g-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .g-card{
+    display:block;text-decoration:none;color:var(--ink);
+    background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    transition:transform .15s, border-color .15s;
+  }
+  .g-card:hover{transform:translateY(-2px);border-color:var(--apricot-deep)}
+  .g-card .g-top{
+    background:var(--apricot);padding:22px 12px;text-align:center;
+    font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:22px;
+    word-break:keep-all;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .g-card .g-meta{padding:10px 12px;font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+  .g-card .g-meta b{color:var(--ink);font-weight:700}
+
+  .w-back{display:inline-block;font-size:14px;color:var(--ink-soft);text-decoration:none;margin-bottom:14px}
+  .w-back:hover{color:var(--ink)}
+  .w-banner{
+    background:var(--apricot);border-radius:18px;padding:30px 20px;text-align:center;margin-bottom:14px;
+  }
+  .w-banner .w-name{font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:clamp(30px,8vw,44px);letter-spacing:-.03em;word-break:keep-all}
+  .w-banner .w-sub{font-family:"Nanum Myeongjo",serif;font-size:13px;letter-spacing:.15em;color:rgba(20,18,16,.6);margin-top:4px}
+  .w-stats{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+  .w-stats span{font-size:14px;color:var(--ink-soft)}
+  .w-entry{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+  .w-entry .w-date{font-size:13px;color:var(--ink-soft);margin-bottom:6px}
+  .w-entry .w-word{
+    display:inline-block;background:var(--apricot);border-radius:6px;padding:2px 10px;
+    font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:18px;margin-bottom:10px;
+  }
+  .w-entry .c-text{margin-top:0}
+
   @media (max-width:420px){
     .brand{font-size:16px}
     .c-form .who{flex-direction:column}
@@ -214,6 +266,10 @@
     <div class="brand" id="brand">나크작<span class="x">X</span>박완서의 낱말들</div>
     <button class="admin-btn" id="adminBtn">관리자</button>
   </div>
+  <nav class="tabs">
+    <a href="#/" id="tabFeed">오늘의 낱말</a>
+    <a href="#/gallery" id="tabGallery">갤러리</a>
+  </nav>
 </header>
 
 <main>
@@ -249,6 +305,7 @@
   </section>
 
   <div id="feed"><div class="loading">불러오는 중…</div></div>
+  <div id="gallery"><div class="loading">불러오는 중…</div></div>
 </main>
 
 <footer>나크작 X 박완서의 낱말들</footer>
@@ -334,14 +391,132 @@ async function load(silent){
   try{
     const [w,c] = await Promise.all([dbGet('words'), dbGet('comments')]);
     words = w||{}; comments = c||{};
+    if(silent && document.activeElement && document.activeElement.id==='gSearch') return;
     render();
   }catch(e){
     if(!silent) $('feed').innerHTML = '<div class="empty">불러오지 못했어요.<br>잠시 뒤 새로고침해 주세요.</div>';
   }
 }
 
-/* ===================== 그리기 ===================== */
+/* ===================== 화면 나누기 ===================== */
+function route(){
+  const h = location.hash.replace(/^#\/?/,'');
+  if(h.startsWith('gallery')){
+    const rest = h.slice('gallery'.length).replace(/^\//,'');
+    return {view:'gallery', name: rest ? decodeURIComponent(rest) : null};
+  }
+  return {view:'feed'};
+}
 function render(){
+  const r = route();
+  document.body.classList.toggle('v-gallery', r.view==='gallery');
+  $('tabFeed').classList.toggle('on', r.view==='feed');
+  $('tabGallery').classList.toggle('on', r.view==='gallery');
+  if(r.view==='gallery') r.name ? renderWall(r.name) : renderGallery();
+  else renderFeed();
+}
+window.addEventListener('hashchange', ()=>{ render(); window.scrollTo(0,0); });
+
+/* ===================== 갤러리 ===================== */
+// 이름별로 모든 글 모으기
+function collectAuthors(){
+  const map = {};
+  for(const [wid, cs] of Object.entries(comments)){
+    const w = words[wid]; if(!w) continue;
+    for(const [cid, c] of Object.entries(cs||{})){
+      const name = (c.name||'').trim(); if(!name) continue;
+      (map[name] = map[name] || []).push({cid, wid, word:w, c});
+    }
+  }
+  for(const list of Object.values(map)){
+    list.sort((a,b)=> a.word.date.localeCompare(b.word.date) || a.c.createdAt-b.c.createdAt);
+  }
+  return map;
+}
+const wallLink = name => '#/gallery/' + encodeURIComponent(name);
+
+let gQuery = '';
+function renderGallery(){
+  const authors = collectAuthors();
+  let names = Object.keys(authors).sort((a,b)=>a.localeCompare(b,'ko'));
+  const total = names.length;
+  if(gQuery) names = names.filter(n=>n.includes(gQuery));
+
+  const cards = names.map(n=>{
+    const list = authors[n];
+    const days = new Set(list.map(x=>x.wid)).size;
+    const last = fmtDate(list[list.length-1].word.date);
+    return `<a class="g-card" href="${wallLink(n)}">
+      <div class="g-top">${esc(n)}</div>
+      <div class="g-meta"><b>글 ${list.length}편</b> · 낱말 ${days}개<br>최근 ${last.main.replace(/^\d+년 /,'')}</div>
+    </a>`;
+  }).join('');
+
+  $('gallery').innerHTML = `
+    <div class="g-head">
+      <h1>갤러리</h1>
+      <p>쓴 사람마다 담벼락이 생겨요. 지금까지 ${total}명이 글을 남겼어요.</p>
+    </div>
+    ${total ? `<input class="g-search" id="gSearch" placeholder="내 이름 찾기" value="${esc(gQuery)}">` : ''}
+    ${total ? (names.length ? `<div class="g-grid">${cards}</div>` : '<div class="empty">그 이름의 담벼락이 없어요.</div>')
+            : '<div class="empty">아직 담벼락이 없어요.<br>낱말 아래 글을 남기면 여기 생겨요.</div>'}`;
+
+  const s = $('gSearch');
+  if(s){
+    s.oninput = ()=>{ gQuery = s.value.trim(); const pos=s.selectionStart; renderGallery(); const n=$('gSearch'); n.focus(); n.setSelectionRange(pos,pos); };
+  }
+}
+
+function renderWall(name){
+  const list = collectAuthors()[name] || [];
+  if(!list.length){
+    $('gallery').innerHTML = `<a class="w-back" href="#/gallery">← 갤러리</a>
+      <div class="empty">‘${esc(name)}’ 님의 글이 아직 없어요.</div>`;
+    return;
+  }
+  const days = new Set(list.map(x=>x.wid)).size;
+  $('gallery').innerHTML = `
+    <a class="w-back" href="#/gallery">← 갤러리</a>
+    <div class="w-banner">
+      <div class="w-name">${esc(name)}</div>
+      <div class="w-sub">의 담벼락</div>
+    </div>
+    <div class="w-stats">
+      <span>글 ${list.length}편 · 낱말 ${days}개</span>
+      <button class="btn" id="dlTxt">txt로 내려받기</button>
+    </div>
+    ${list.map(x=>{
+      const d = fmtDate(x.word.date);
+      return `<div class="w-entry">
+        <div class="w-date">${d.main} ${d.day}</div>
+        <div class="w-word">${esc(x.word.word)}</div>
+        <div class="c-text">${esc(x.c.text)}</div>
+      </div>`;
+    }).join('')}`;
+  $('dlTxt').onclick = ()=>downloadTxt(name, list);
+}
+
+function downloadTxt(name, list){
+  const line = '─'.repeat(24);
+  const t = fmtDate(todayStr());
+  let out = `나크작 X 박완서의 낱말들\n${name}의 담벼락\n\n글 ${list.length}편 · ${t.main} 내려받음\n\n${'═'.repeat(24)}\n\n`;
+  for(const x of list){
+    const d = fmtDate(x.word.date);
+    out += `${d.main} ${d.day}\n오늘의 낱말 · ${x.word.word}\n`;
+    if(x.word.quote) out += `\n“${x.word.quote}”${x.word.source?`\n— 박완서, ${x.word.source}`:''}\n`;
+    out += `\n${x.c.text}\n\n${line}\n\n`;
+  }
+  const blob = new Blob(['﻿'+out], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `나크작_${name.replace(/[\\/:*?"<>|]/g,'_')}_담벼락.txt`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  toast('내려받았어요');
+}
+
+/* ===================== 피드 그리기 ===================== */
+function renderFeed(){
   // 쓰는 중인 글은 지켜두기
   const drafts = {};
   document.querySelectorAll('.c-form textarea').forEach(t=>{ if(t.value) drafts[t.dataset.w]=t.value; });
@@ -417,7 +592,7 @@ function commentHTML(wid,cid,c){
   return `
   <div class="c-item" id="c-${cid}">
     <div class="c-top">
-      <div class="c-name">${esc(c.name)}<span class="c-time">${fmtTime(c.createdAt)}${c.editedAt?' · 수정됨':''}</span></div>
+      <div class="c-name"><a href="${wallLink((c.name||'').trim())}" style="color:inherit;text-decoration:none">${esc(c.name)}</a><span class="c-time">${fmtTime(c.createdAt)}${c.editedAt?' · 수정됨':''}</span></div>
       <div class="c-actions">
         <button class="tool" onclick="editComment('${wid}','${cid}')">수정</button>
         <button class="tool" onclick="deleteComment('${wid}','${cid}')">삭제</button>
@@ -510,7 +685,7 @@ $('adminBtn').onclick = async ()=>{
   if(isAdmin){ setAdmin(false); return; }
   const pw = await askPassword('관리자', '관리자 비밀번호를 넣어 주세요.');
   if(pw===null) return;
-  if(pw===ADMIN_PW){ setAdmin(true); window.scrollTo({top:0,behavior:'smooth'}); setTimeout(()=>$('fWord').focus(),300); }
+  if(pw===ADMIN_PW){ if(route().view!=='feed') location.hash='#/'; setAdmin(true); window.scrollTo({top:0,behavior:'smooth'}); setTimeout(()=>$('fWord').focus(),300); }
   else toast('비밀번호가 맞지 않아요');
 };
 
@@ -572,7 +747,7 @@ async function deleteWord(id){
 }
 
 /* ===================== 시작 ===================== */
-$('brand').onclick = ()=>window.scrollTo({top:0,behavior:'smooth'});
+$('brand').onclick = ()=>{ if(route().view!=='feed') location.hash='#/'; else window.scrollTo({top:0,behavior:'smooth'}); };
 resetForm();
 setAdmin(isAdmin);
 load();
