@@ -152,6 +152,27 @@
   .c-edit .btn{padding:7px 14px;font-size:14px}
   .more-c{border:none;background:none;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:6px 0}
 
+  .c-foot{display:flex;align-items:center;gap:14px;margin-top:6px}
+  .like,.reply-btn{
+    border:none;background:none;cursor:pointer;padding:4px 0;font-size:13px;color:var(--ink-soft);
+    display:inline-flex;align-items:center;gap:4px;
+  }
+  .like .heart{font-size:17px;line-height:1;transition:transform .15s}
+  .like.on{color:var(--accent)}
+  .like.on .heart{transform:scale(1.12)}
+  .like:hover,.reply-btn:hover{color:var(--ink)}
+  .like.on:hover{color:var(--accent)}
+  .replies{margin:8px 0 2px 6px;padding-left:14px;border-left:2px solid var(--apricot)}
+  .r-item{padding:8px 0}
+  .r-item .c-name{font-size:13.5px}
+  .r-item .c-text{font-size:15px}
+  .r-form{padding:8px 0 4px}
+  .r-form .who{display:flex;gap:6px;margin-bottom:6px}
+  .r-form input{flex:1;min-width:0;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:#fff;outline:none;font-size:14px}
+  .r-form textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:#fff;outline:none;min-height:64px;resize:vertical;line-height:1.7;font-family:"Gowun Batang",serif;font-size:15px}
+  .r-form input:focus,.r-form textarea:focus{border-color:var(--ink)}
+  .r-form .row{justify-content:flex-end;margin-top:6px}
+  .r-form .btn{padding:7px 14px;font-size:14px}
   .c-form{border-top:1px solid var(--line);padding:14px 18px 18px;background:#FFFDFB}
   .c-form .who{display:flex;gap:8px;margin-bottom:8px}
   .c-form input{
@@ -252,10 +273,12 @@
     font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:18px;margin-bottom:10px;
   }
   .w-entry .c-text{margin-top:0}
+  .w-meta{display:flex;gap:12px;font-size:13px;color:var(--ink-soft);margin-top:10px}
+  .w-like{color:var(--accent)}
 
   @media (max-width:420px){
     .brand{font-size:16px}
-    .c-form .who{flex-direction:column}
+    .c-form .who,.r-form .who{flex-direction:column}
   }
 </style>
 </head>
@@ -340,6 +363,7 @@ const api = path => `${DB_URL}/${ROOT}/${path}.json`;
 async function dbGet(path){ const r = await fetch(api(path)); if(!r.ok) throw new Error(r.status); return r.json(); }
 async function dbPost(path,data){ const r = await fetch(api(path),{method:'POST',body:JSON.stringify(data)}); if(!r.ok) throw new Error(r.status); return r.json(); }
 async function dbPatch(path,data){ const r = await fetch(api(path),{method:'PATCH',body:JSON.stringify(data)}); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function dbPut(path,data){ const r = await fetch(api(path),{method:'PUT',body:JSON.stringify(data)}); if(!r.ok) throw new Error(r.status); return r.json(); }
 async function dbDel(path){ const r = await fetch(api(path),{method:'DELETE'}); if(!r.ok) throw new Error(r.status); }
 
 function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -391,7 +415,8 @@ async function load(silent){
   try{
     const [w,c] = await Promise.all([dbGet('words'), dbGet('comments')]);
     words = w||{}; comments = c||{};
-    if(silent && document.activeElement && document.activeElement.id==='gSearch') return;
+    const ae = document.activeElement;
+    if(silent && ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return;
     render();
   }catch(e){
     if(!silent) $('feed').innerHTML = '<div class="empty">불러오지 못했어요.<br>잠시 뒤 새로고침해 주세요.</div>';
@@ -491,9 +516,15 @@ function renderWall(name){
         <div class="w-date">${d.main} ${d.day}</div>
         <div class="w-word">${esc(x.word.word)}</div>
         <div class="c-text">${esc(x.c.text)}</div>
+        ${wallMeta(x.c)}
       </div>`;
     }).join('')}`;
   $('dlTxt').onclick = ()=>downloadTxt(name, list);
+}
+
+function wallMeta(c){
+  const l = Object.keys(c.likes||{}).length;
+  return l ? `<div class="w-meta"><span class="w-like">♥&#xFE0E; ${l}</span></div>` : '';
 }
 
 function downloadTxt(name, list){
@@ -504,7 +535,10 @@ function downloadTxt(name, list){
     const d = fmtDate(x.word.date);
     out += `${d.main} ${d.day}\n오늘의 낱말 · ${x.word.word}\n`;
     if(x.word.quote) out += `\n“${x.word.quote}”${x.word.source?`\n— 박완서, ${x.word.source}`:''}\n`;
-    out += `\n${x.c.text}\n\n${line}\n\n`;
+    out += `\n${x.c.text}\n`;
+    const l = Object.keys(x.c.likes||{}).length;
+    if(l) out += `\n♥ ${l}\n`;
+    out += `\n${line}\n\n`;
   }
   const blob = new Blob(['﻿'+out], {type:'text/plain;charset=utf-8'});
   const a = document.createElement('a');
@@ -520,6 +554,8 @@ function renderFeed(){
   // 쓰는 중인 글은 지켜두기
   const drafts = {};
   document.querySelectorAll('.c-form textarea').forEach(t=>{ if(t.value) drafts[t.dataset.w]=t.value; });
+  const rDrafts = {};
+  document.querySelectorAll('.r-form').forEach(f=>{ const t=f.elements.text; rDrafts[t.dataset.r]={text:t.value,name:f.elements.name.value,pw:f.elements.pw.value}; });
   const editing = document.querySelector('.c-edit');
   if(editing) return; // 수정 중엔 새로 그리지 않음
 
@@ -534,7 +570,8 @@ function renderFeed(){
   Object.entries(drafts).forEach(([wid,v])=>{ const t=document.querySelector(`.c-form textarea[data-w="${wid}"]`); if(t) t.value=v; });
 
   let savedName=''; try{ savedName = localStorage.getItem('nakjak_name')||''; }catch(e){}
-  document.querySelectorAll('.c-form input[name=name]').forEach(i=>{ if(!i.value) i.value=savedName; });
+  Object.entries(rDrafts).forEach(([cid,d])=>{ const t=document.querySelector(`textarea[data-r="${cid}"]`); if(t){ const f=t.closest('form'); t.value=d.text; f.elements.name.value=d.name; f.elements.pw.value=d.pw; } });
+  document.querySelectorAll('.c-form input[name=name], .r-form input[name=name]').forEach(i=>{ if(!i.value) i.value=savedName; });
 }
 
 function highlight(quote, word){
@@ -588,21 +625,118 @@ function postHTML(id,w){
   </article>`;
 }
 
+/* ===================== 좋아요·답글 도우미 ===================== */
+// 이 기기(브라우저) 표시 — 좋아요를 한 번만 누르게
+let DEVICE = '';
+try{ DEVICE = localStorage.getItem('nakjak_device') || ''; }catch(e){}
+if(!DEVICE){
+  DEVICE = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  try{ localStorage.setItem('nakjak_device', DEVICE); }catch(e){}
+}
+let openReply = {};   // 답글 쓰기 칸이 열린 글
+let openReplies = {}; // 답글 목록 펼친 글
+
+// path: "wid/cid" 또는 "wid/cid/replies/rid"
+function getNode(path){
+  return path.split('/').reduce((o,k)=>o&&o[k], comments);
+}
+const idOf = path => path.split('/').pop();
+
+function likeBtn(path,node){
+  const likes = node.likes||{}; const n = Object.keys(likes).length; const mine = !!likes[DEVICE];
+  return `<button class="like ${mine?'on':''}" onclick="toggleLike('${path}')" aria-label="좋아요">
+    <span class="heart">${mine?'♥\uFE0E':'♡\uFE0E'}</span>${n?`<span>${n}</span>`:''}</button>`;
+}
+
+function nameLink(name){
+  return `<a href="${wallLink((name||'').trim())}" style="color:inherit;text-decoration:none">${esc(name)}</a>`;
+}
+
 function commentHTML(wid,cid,c){
+  const path = `${wid}/${cid}`;
+  const rs = Object.entries(c.replies||{}).sort((a,b)=>a[1].createdAt-b[1].createdAt);
+  const showRs = openReplies[cid] || rs.length<=2;
+  const visibleRs = showRs ? rs : rs.slice(-2);
+  const hiddenRs = rs.length - visibleRs.length;
   return `
   <div class="c-item" id="c-${cid}">
     <div class="c-top">
-      <div class="c-name"><a href="${wallLink((c.name||'').trim())}" style="color:inherit;text-decoration:none">${esc(c.name)}</a><span class="c-time">${fmtTime(c.createdAt)}${c.editedAt?' · 수정됨':''}</span></div>
+      <div class="c-name">${nameLink(c.name)}<span class="c-time">${fmtTime(c.createdAt)}${c.editedAt?' · 수정됨':''}</span></div>
       <div class="c-actions">
-        <button class="tool" onclick="editComment('${wid}','${cid}')">수정</button>
-        <button class="tool" onclick="deleteComment('${wid}','${cid}')">삭제</button>
+        <button class="tool" onclick="editNode('${path}')">수정</button>
+        <button class="tool" onclick="deleteNode('${path}')">삭제</button>
       </div>
     </div>
     <div class="c-text">${esc(c.text)}</div>
+    <div class="c-foot">
+      ${likeBtn(path,c)}
+      <button class="reply-btn" onclick="toggleReplyForm('${cid}')">답글${rs.length?` ${rs.length}`:' 달기'}</button>
+    </div>
+    ${rs.length||openReply[cid] ? `<div class="replies">
+      ${hiddenRs?`<button class="more-c" onclick="openReplies['${cid}']=true;render()">이전 답글 ${hiddenRs}개 더 보기</button>`:''}
+      ${visibleRs.map(([rid,r])=>replyHTML(wid,cid,rid,r)).join('')}
+      ${openReply[cid] ? replyFormHTML(wid,cid,c.name) : ''}
+    </div>` : ''}
   </div>`;
 }
 
-/* ===================== 글(댓글) ===================== */
+function replyHTML(wid,cid,rid,r){
+  const path = `${wid}/${cid}/replies/${rid}`;
+  return `
+  <div class="r-item" id="c-${rid}">
+    <div class="c-top">
+      <div class="c-name">${nameLink(r.name)}<span class="c-time">${fmtTime(r.createdAt)}${r.editedAt?' · 수정됨':''}</span></div>
+      <div class="c-actions">
+        <button class="tool" onclick="editNode('${path}')">수정</button>
+        <button class="tool" onclick="deleteNode('${path}')">삭제</button>
+      </div>
+    </div>
+    <div class="c-text">${esc(r.text)}</div>
+    <div class="c-foot">${likeBtn(path,r)}</div>
+  </div>`;
+}
+
+function replyFormHTML(wid,cid,toName){
+  return `
+  <form class="r-form" onsubmit="addReply(event,'${wid}','${cid}')">
+    <div class="who">
+      <input name="name" placeholder="이름" maxlength="20" required>
+      <input name="pw" type="password" placeholder="비밀번호" maxlength="20" required autocomplete="new-password">
+    </div>
+    <textarea name="text" data-r="${cid}" placeholder="${esc(toName)} 님에게 답글" maxlength="1500" required></textarea>
+    <div class="row">
+      <button class="btn ghost" type="button" onclick="toggleReplyForm('${cid}')">취소</button>
+      <button class="btn" type="submit">답글 남기기</button>
+    </div>
+  </form>`;
+}
+
+function toggleReplyForm(cid){
+  openReply[cid] = !openReply[cid];
+  if(openReply[cid]) openReplies[cid] = true;
+  render();
+  if(openReply[cid]){
+    const t = document.querySelector(`textarea[data-r="${cid}"]`);
+    if(t){ const f=t.closest('form'); (f.elements.name.value ? t : f.elements.name).focus(); }
+  }
+}
+
+async function toggleLike(path){
+  const node = getNode(path); if(!node) return;
+  node.likes = node.likes||{};
+  const mine = !!node.likes[DEVICE];
+  if(mine) delete node.likes[DEVICE]; else node.likes[DEVICE] = true;
+  render();
+  try{
+    if(mine) await dbDel(`comments/${path}/likes/${DEVICE}`);
+    else await dbPut(`comments/${path}/likes/${DEVICE}`, true);
+  }catch(e){
+    if(mine) node.likes[DEVICE] = true; else delete node.likes[DEVICE];
+    render(); toast('좋아요가 반영되지 않았어요');
+  }
+}
+
+/* ===================== 글(댓글)·답글 ===================== */
 async function addComment(e,wid){
   e.preventDefault();
   const f = e.target, btn = f.querySelector('button[type=submit]');
@@ -623,49 +757,69 @@ async function addComment(e,wid){
   btn.disabled = false;
 }
 
-async function checkCommentPw(wid,cid,action){
+async function addReply(e,wid,cid){
+  e.preventDefault();
+  const f = e.target, btn = f.querySelector('button[type=submit]');
+  const el = f.elements; const name = el.name.value.trim(), pw = el.pw.value, text = el.text.value.trim();
+  if(!name||!pw||!text) return;
+  btn.disabled = true;
+  try{
+    const data = {name, text, pw: await hash(pw), createdAt: Date.now()};
+    const res = await dbPost(`comments/${wid}/${cid}/replies`, data);
+    const c = comments[wid][cid]; c.replies = c.replies||{}; c.replies[res.name] = data;
+    try{ localStorage.setItem('nakjak_name', name); }catch(_){}
+    el.text.value='';
+    openReply[cid] = false; openReplies[cid] = true;
+    render(); toast('답글을 남겼어요');
+  }catch(err){ btn.disabled = false; toast('저장에 실패했어요. 다시 시도해 주세요'); }
+}
+
+async function checkPw(path,action){
   if(isAdmin) return true;
-  const pw = await askPassword(`글 ${action}`, '글을 남길 때 정한 비밀번호를 넣어 주세요.');
+  const pw = await askPassword(`${action}`, '글을 남길 때 정한 비밀번호를 넣어 주세요.');
   if(pw===null) return false;
-  if(await hash(pw) !== comments[wid][cid].pw){ toast('비밀번호가 맞지 않아요'); return false; }
+  if(await hash(pw) !== getNode(path).pw){ toast('비밀번호가 맞지 않아요'); return false; }
   return true;
 }
 
-async function editComment(wid,cid){
-  if(!await checkCommentPw(wid,cid,'수정')) return;
-  const box = $('c-'+cid); const c = comments[wid][cid];
-  box.querySelector('.c-text').outerHTML = `
+async function editNode(path){
+  if(!await checkPw(path,'글 수정')) return;
+  const box = $('c-'+idOf(path)); const node = getNode(path);
+  box.querySelector(':scope > .c-text').outerHTML = `
     <div class="c-edit">
-      <textarea>${esc(c.text)}</textarea>
+      <textarea>${esc(node.text)}</textarea>
       <div class="row">
         <button class="btn ghost" onclick="cancelCommentEdit()">취소</button>
-        <button class="btn" onclick="saveComment('${wid}','${cid}',this)">저장</button>
+        <button class="btn" onclick="saveNode('${path}',this)">저장</button>
       </div>
     </div>`;
-  box.querySelector('.c-actions').style.display='none';
-  box.querySelector('textarea').focus();
+  box.querySelector(':scope > .c-top .c-actions').style.display='none';
+  box.querySelector('.c-edit textarea').focus();
 }
 function cancelCommentEdit(){ document.querySelector('.c-edit')?.remove(); render(); }
 
-async function saveComment(wid,cid,btn){
+async function saveNode(path,btn){
   const text = btn.closest('.c-edit').querySelector('textarea').value.trim();
   if(!text) return;
   btn.disabled = true;
   try{
     const patch = {text, editedAt: Date.now()};
-    await dbPatch(`comments/${wid}/${cid}`, patch);
-    Object.assign(comments[wid][cid], patch);
+    await dbPatch(`comments/${path}`, patch);
+    Object.assign(getNode(path), patch);
     document.querySelector('.c-edit')?.remove();
     render(); toast('고쳤어요');
   }catch(e){ btn.disabled=false; toast('저장에 실패했어요'); }
 }
 
-async function deleteComment(wid,cid){
-  if(!await checkCommentPw(wid,cid,'삭제')) return;
-  if(!confirm('이 글을 지울까요? 되돌릴 수 없어요.')) return;
+async function deleteNode(path){
+  const isReply = path.includes('/replies/');
+  if(!await checkPw(path, isReply?'답글 삭제':'글 삭제')) return;
+  const n = isReply ? 0 : Object.keys(getNode(path).replies||{}).length;
+  if(!confirm(`이 ${isReply?'답글':'글'}을 지울까요? 되돌릴 수 없어요.${n?`\n달린 답글 ${n}개도 함께 지워져요.`:''}`)) return;
   try{
-    await dbDel(`comments/${wid}/${cid}`);
-    delete comments[wid][cid];
+    await dbDel(`comments/${path}`);
+    const parts = path.split('/'); const key = parts.pop();
+    delete getNode(parts.join('/'))[key];
     render(); toast('지웠어요');
   }catch(e){ toast('삭제에 실패했어요'); }
 }
